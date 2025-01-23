@@ -1,4 +1,4 @@
-import { Card, ChipStack, Denom, Player } from "../types/poker.types";
+import { Card, ChipStack, Denom, Player, BotPlayer, Pot } from "../types/poker.types";
 import {
   DENOMINATIONS,
   SUITS,
@@ -8,18 +8,15 @@ import {
   BOT_PLAYERS_DIFFICULTY,
 } from "./constants";
 
-export const createPlayers = (numberOfPlayers: number): Player[] => {
-  const players: Player[] = [];
+export const createPlayers = (numberOfPlayers: number): (Player | BotPlayer)[] => {
+  const players: (Player | BotPlayer)[] = [];
   players.push({
     id: 0,
     name: "You",
     hand: [],
     chipStack: defaultChipStack(STARTING_MONEY),
-    bet: 0,
-    folded: false,
-    isBot: false,
+    isFolded: false,
     isDealer: true,
-    aiDifficulty: 0,
     isSmallBlind: false,
     isBigBlind: false,
   });
@@ -29,8 +26,7 @@ export const createPlayers = (numberOfPlayers: number): Player[] => {
       name: PLAYER_NAMES[i],
       hand: [],
       chipStack: defaultChipStack(STARTING_MONEY),
-      bet: 0,
-      folded: false,
+      isFolded: false,
       isBot: true,
       decisionMaker: createAIDecisionMaker(BOT_PLAYERS_DIFFICULTY),
       aiDifficulty: BOT_PLAYERS_DIFFICULTY,
@@ -59,6 +55,27 @@ export const createDeck = (): Card[] =>
 
 export const shuffleDeck = (deck: Card[]): Card[] =>
   [...deck].sort(() => Math.random() - 0.5);
+
+export const createPot = (total: number, players: number[]): Pot => ({
+  total: defaultChipStack(total),
+  players,
+  bets: [],
+  isActive: true,
+});
+
+export const addBetToPot = (
+  pot: Pot,
+  playerId: number,
+  amount: number
+): Pot => {
+  const newPot = { ...pot };
+  newPot.total = addToStack(newPot.total, amount);
+  newPot.bets.push({
+    playerId,
+    chipStack: addToStack(newPot.bets[playerId].chipStack, amount),
+  });
+  return newPot;
+};
 
 export const defaultChipStack = (total: number): ChipStack => {
   // Define chip denominations in descending order

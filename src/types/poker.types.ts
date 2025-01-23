@@ -9,20 +9,26 @@ export type Card = {
 export type Denom = 10 | 50 | 100 | 500 | 1000;
 export type ChipStack = Record<Denom, number>;
 
-export interface Player {
+export type Player = {
   id: number;
   name: string;
   hand: Card[];
   chipStack: ChipStack;
-  bet: number;
-  folded: boolean;
-  isBot?: boolean;
+
+  isFolded: boolean;
   isDealer?: boolean;
   isSmallBlind?: boolean;
   isBigBlind?: boolean;
-  aiDifficulty?: number;
-  decisionMaker?: (hand: Card[], tableCards: Card[]) => number;
-}
+};
+
+export type BotBrain = {
+  isBot: boolean;
+  aiDifficulty: number;
+  confidence: number;
+  decisionMaker: (hand: Card[], tableCards: Card[]) => number;
+};
+
+export type BotPlayer = Player & BotBrain;
 
 /**
  * Defines the overall state of the poker game at any given point.
@@ -36,16 +42,27 @@ export enum RoundStage {
   SHOWDOWN = "SHOWDOWN",
 }
 
+export type Pot = {
+  total: ChipStack;
+  bets: Bet[];
+  isActive: boolean;
+};
+
+export type Bet = {
+  playerId: number;
+  chipStack: ChipStack;
+};
+
 export type GameState = {
   deck: Card[]; // La baraja actual de cartas para ser sacadas
-  players: Player[]; // Todos los jugadores en el juego
+  players: (Player | BotPlayer)[]; // Todos los jugadores en el juego
   board: {
     flop: Card[];
     turn: Card[];
     river: Card[];
   }; // Las cartas comunitarias compartidas (flop + turn + river)
   burnCards: Card[]; // Cartas descartadas ("quemadas") antes de cada ronda de reparto
-  pot: ChipStack; // La cantidad total de fichas en el pozo
+  pots: Pot[]; // La cantidad total de fichas en el pozo
   showdown: boolean; // Indica si hemos llegado al showdown
   dealerIndex: number; // Índice del dealer actual
   smallBlindIndex: number; // Índice del jugador que pone la ciega pequeña
@@ -53,6 +70,7 @@ export type GameState = {
   currentPlayerId: number; // ID del jugador que tiene el turno actual
   roundStage: RoundStage; // Nueva propiedad para rastrear la etapa actual de la ronda
   playersActedThisStage: number; // Nueva propiedad para rastrear la etapa actual de la ronda
+  availableActions: string[]; // Nueva propiedad para rastrear la etapa actual de la ronda
 };
 
 export interface BoardState {
@@ -64,7 +82,7 @@ export interface GameTableProps {
   remainingDeckCards: Card[];
   burnedCards: Card[];
   board: BoardState; // Object with flop, turn, river
-  pot: ChipStack;
+  pots: Pot[];
   showdown: boolean;
   //   onDealFlop: () => void;
   //   onDealTurn: () => void;

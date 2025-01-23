@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { usePokerGame } from "../hooks/usePokerGame";
 import { Player } from "./Player";
 import { GameTable } from "./GameTable";
@@ -23,7 +23,7 @@ const PokerGame: React.FC = () => {
         remainingDeckCards={gameState.deck}
         burnedCards={gameState.burnCards}
         board={gameState.board} // All community cards: flop, turn, river
-        pot={gameState.pot}
+        pots={gameState.pots}
         showdown={gameState.showdown}
       />
 

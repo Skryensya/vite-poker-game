@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { ChipStack, GameState, RoundStage } from "../types/poker.types";
+import {
+  // ChipStack,
+  GameState,
+  RoundStage,
+  BotPlayer,
+  Pot,
+  Bet,
+} from "../types/poker.types";
 import {
   STARTING_SMALL_BLIND_AMOUNT,
   STARTING_BIG_BLIND_AMOUNT,
@@ -9,7 +16,8 @@ import {
   createDeck,
   shuffleDeck,
   deductFromStack,
-  defaultChipStack,
+  createPot,
+  addBetToPot,
   getStackTotal,
   addToStack,
   createPlayers,
@@ -19,7 +27,7 @@ import {
  * Utility that returns how many players are still active (not folded).
  */
 function countActivePlayers(players: GameState["players"]) {
-  return players.filter((p) => !p.folded).length;
+  return players.filter((p) => !p.isFolded).length;
 }
 
 /**
@@ -92,16 +100,15 @@ export const usePokerGame = () => {
     players: [],
     board: { flop: [], turn: [], river: [] },
     burnCards: [],
-    pot: defaultChipStack(0),
+    pots: [],
     showdown: false,
     dealerIndex: 0,
     smallBlindIndex: 1,
     bigBlindIndex: 2,
     currentPlayerId: 0,
     roundStage: RoundStage.PRE_FLOP,
-
-    /** NEW property: how many players have completed their turn in this stage */
-    playersActedThisStage: 0, // <--- Add this
+    playersActedThisStage: 0,
+    availableActions: [],
   });
 
   // ==========================
@@ -124,7 +131,7 @@ export const usePokerGame = () => {
       players,
       board: { flop: [], turn: [], river: [] },
       burnCards: [],
-      pot: defaultChipStack(0),
+      pots: [createPot(0, [])],
       showdown: false,
       dealerIndex: 0,
       smallBlindIndex: 1,
@@ -132,86 +139,77 @@ export const usePokerGame = () => {
       currentPlayerId: 0,
       roundStage: RoundStage.PRE_FLOP,
       playersActedThisStage: 0,
-    });
-
-    // Post blinds immediately (small & big)
-    setTimeout(() => {
-      placeBlinds();
-    }, 0);
-  }, []);
-
-  const placeBlinds = useCallback(() => {
-    setGameState((prev) => {
-      if (prev.players.length < 2) return prev;
-
-      const smallBlindAmount = STARTING_SMALL_BLIND_AMOUNT;
-      const bigBlindAmount = STARTING_BIG_BLIND_AMOUNT;
-
-      const updatedPlayers = prev.players.map((p, idx) => {
-        if (idx === prev.smallBlindIndex) {
-          const bet = Math.min(smallBlindAmount, getStackTotal(p.chipStack));
-          return {
-            ...p,
-            chipStack: deductFromStack(p.chipStack, bet),
-            bet,
-          };
-        }
-        if (idx === prev.bigBlindIndex) {
-          const bet = Math.min(bigBlindAmount, getStackTotal(p.chipStack));
-          return {
-            ...p,
-            chipStack: deductFromStack(p.chipStack, bet),
-            bet,
-          };
-        }
-        return p;
-      });
-
-      const totalBlinds =
-        Math.min(
-          smallBlindAmount,
-          getStackTotal(updatedPlayers[prev.smallBlindIndex].chipStack)
-        ) +
-        Math.min(
-          bigBlindAmount,
-          getStackTotal(updatedPlayers[prev.bigBlindIndex].chipStack)
-        );
-
-      const potAfterBlinds = addToStack(prev.pot, totalBlinds);
-
-      return {
-        ...prev,
-        players: updatedPlayers,
-        pot: potAfterBlinds,
-      };
+      // TODO: REVISIT HOW TO HANDLE AVAILABLE ACTIONS ON INIT
+      availableActions: ["check", "call", "raise"],
     });
   }, []);
 
-  // =====================
-  // 2. Round Stage Logic
-  // =====================
+  const calculateAvailableActions = useCallback((state: GameState) => {
+    console.log("calculateAvailableActions");
+    const currentPlayer = state.players[state.currentPlayerId];
+    const AA: string[] = [];
 
-  /**
-   * Called whenever a player acts. We:
-   * 1. Increment `playersActedThisStage`.
-   * 2. If `playersActedThisStage >= numberOfActivePlayers`, then move to the next stage.
-   * 3. Otherwise, do nothing more about the stage – just pass turn to next player.
-   */
-  const handlePostActionStageCheck = useCallback(
-    (draft: GameState): GameState => {
-      // 1) Increment how many players have acted
-      const playersActed = draft.playersActedThisStage + 1;
-      let newState = { ...draft, playersActedThisStage: playersActed };
+    if (currentPlayer.isFolded) return AA;
 
-      const activePlayers = countActivePlayers(draft.players);
-      // 2) If all active players have acted => nextRoundStage
-      if (playersActed >= activePlayers)
-        newState = nextRoundStageFromState(newState);
+    if (state.roundStage === RoundStage.PRE_FLOP) {
+      if (currentPlayer.isSmallBlind) AA.push("placeSmallBlind");
+      if (currentPlayer.isBigBlind) AA.push("placeBigBlind");
+      return AA;
+    }
+    if (state.roundStage !== RoundStage.SHOWDOWN) {
+      AA.push("fold");
+    }
 
-      return newState;
-    },
-    []
-  );
+    // if another player has already placed a bet, we can't check
+    if (
+      state.pots.some((p: Pot) =>
+        p.bets.some((b: Bet) => getStackTotal(b.chipStack) > 0)
+      )
+    ) {
+      AA.push("check");
+    }
+
+    AA.push("call");
+    AA.push("raise");
+    return AA;
+  }, []);
+
+  const afterPlayerAction = useCallback((draft: GameState): GameState => {
+    const availableActions = calculateAvailableActions(draft);
+    const activePlayers = countActivePlayers(draft.players);
+
+    // 1) Increment how many players have acted
+    const playersActed = draft.playersActedThisStage + 1;
+    let newState = {
+      ...draft,
+      availableActions,
+    };
+
+    const activePot = draft.pots.find((p: Pot) => p.isActive);
+
+    const betTotals =
+      activePot?.bets.map((b: Bet) => getStackTotal(b.chipStack)) || [];
+    const maxBet = betTotals.length > 0 ? Math.max(...betTotals) : 0;
+
+    const foldedPlayers = draft.players
+      .filter((p) => p.isFolded)
+      .map((p) => p.id);
+
+    const allActivePlayersMatched = activePot?.bets
+      .filter((b: Bet) => !foldedPlayers.includes(b.playerId))
+      .some((b: Bet) => getStackTotal(b.chipStack) === maxBet);
+
+    console.log({ ...activePot });
+    console.table({ maxBet, allActivePlayersMatched });
+
+    // 2) If all active players have acted and either folded or matched the max bet => nextRoundStage
+
+    if (playersActed >= activePlayers && allActivePlayersMatched) {
+      newState = nextRoundStageFromState(newState);
+    }
+
+    return newState;
+  }, []);
 
   /**
    * Move turn to the next non-folded player
@@ -223,7 +221,7 @@ export const usePokerGame = () => {
     // find the next player that hasn't folded
     do {
       nextId = (nextId + 1) % totalPlayers;
-    } while (draft.players[nextId].folded);
+    } while (draft.players[nextId].isFolded);
 
     draft.currentPlayerId = nextId;
   }, []);
@@ -235,27 +233,41 @@ export const usePokerGame = () => {
     setGameState((prev) => {
       // 1) Fold this player
       const updatedPlayers = prev.players.map((p, i) =>
-        i === prev.currentPlayerId ? { ...p, folded: true } : p
+        i === prev.currentPlayerId ? { ...p, isFolded: true } : p
       );
 
       // 2) Incorporate that into the new state
       let newState: GameState = {
         ...prev,
         players: updatedPlayers,
+        availableActions: calculateAvailableActions(prev),
       };
 
       // 3) Pass turn to next player (in the same "draft")
       goToNextPlayer(newState);
 
       // 4) Check if we need to advance roundStage
-      newState = handlePostActionStageCheck(newState);
+      newState = afterPlayerAction(newState);
 
       console.log(`- Player ${prev.players[prev.currentPlayerId].name} folds`);
       return newState;
     });
-  }, [goToNextPlayer, handlePostActionStageCheck]);
+  }, [gameState, goToNextPlayer, afterPlayerAction]);
 
   const check = useCallback(() => {
+    const { roundStage, availableActions } = gameState;
+
+    if (roundStage === RoundStage.SHOWDOWN) return;
+    if (!availableActions.includes("check")) {
+      console.log("check", availableActions);
+      console.log(
+        `- Player "${
+          gameState.players[gameState.currentPlayerId].name
+        }" cannot check`
+      );
+      return;
+    }
+
     setGameState((prev) => {
       // CONSOLE LOG WHICH PLAYER (NAME) checks
       console.log(`- Player ${prev.players[prev.currentPlayerId].name} checks`);
@@ -265,11 +277,10 @@ export const usePokerGame = () => {
       // Pass turn
       goToNextPlayer(newState);
       // Possibly next stage
-      newState = handlePostActionStageCheck(newState);
-
+      newState = afterPlayerAction(newState);
       return newState;
     });
-  }, [goToNextPlayer, handlePostActionStageCheck]);
+  }, [gameState, goToNextPlayer, afterPlayerAction]);
 
   const call = useCallback(() => {
     setGameState((prev) => {
@@ -298,11 +309,11 @@ export const usePokerGame = () => {
       // Next player
       goToNextPlayer(newState);
       // Possibly next stage
-      newState = handlePostActionStageCheck(newState);
+      newState = afterPlayerAction(newState);
 
       return newState;
     });
-  }, [goToNextPlayer, handlePostActionStageCheck]);
+  }, [goToNextPlayer, afterPlayerAction]);
 
   const bet = useCallback(
     (amount: number) => {
@@ -329,14 +340,14 @@ export const usePokerGame = () => {
         // Next player
         goToNextPlayer(newState);
         // Possibly next stage
-        newState = handlePostActionStageCheck(newState);
+        newState = afterPlayerAction(newState);
         console.log(
           `- Player ${prev.players[prev.currentPlayerId].name} bets ${amount}`
         );
         return newState;
       });
     },
-    [goToNextPlayer, handlePostActionStageCheck]
+    [goToNextPlayer, afterPlayerAction]
   );
 
   // =====================
@@ -345,10 +356,20 @@ export const usePokerGame = () => {
   const botPlayMove = useCallback(() => {
     const currentPlayer = gameState.players[gameState.currentPlayerId];
     // Only proceed if it's actually a bot
-    if (!currentPlayer?.isBot) return;
+    if (!(currentPlayer as BotPlayer)?.isBot) return;
+
+    if (currentPlayer.isFolded) return;
 
     // Just to simulate a short delay
     setTimeout(() => {
+      if (currentPlayer.isSmallBlind) {
+        bet(STARTING_SMALL_BLIND_AMOUNT);
+        return;
+      }
+      if (currentPlayer.isBigBlind) {
+        bet(STARTING_BIG_BLIND_AMOUNT);
+        return;
+      }
       const randomDecision = Math.random();
       if (randomDecision < 0.33) {
         fold();
@@ -368,13 +389,14 @@ export const usePokerGame = () => {
     // eslint-disable-next-line
   }, []);
 
+  // Game Loop
   useEffect(() => {
     if (gameState.players.length === 0) return;
-    const currentPlayer = gameState.players[gameState.currentPlayerId];
-    if (currentPlayer?.isBot) {
+
+    if ((gameState.players[gameState.currentPlayerId] as BotPlayer)?.isBot) {
       botPlayMove();
     }
-  }, [gameState.currentPlayerId, gameState.players, botPlayMove]);
+  }, [gameState, botPlayMove, calculateAvailableActions]);
 
   // =====================
   // 6. Public API
