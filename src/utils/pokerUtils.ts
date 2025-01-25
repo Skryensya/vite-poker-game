@@ -1,4 +1,11 @@
-import { Card, ChipStack, Denom, Player, BotPlayer, Pot } from "../types/poker.types";
+import {
+  Card,
+  ChipStack,
+  Denom,
+  Player,
+  BotPlayer,
+  Pot,
+} from "../types/poker.types";
 import {
   DENOMINATIONS,
   SUITS,
@@ -8,7 +15,9 @@ import {
   BOT_PLAYERS_DIFFICULTY,
 } from "./constants";
 
-export const createPlayers = (numberOfPlayers: number): (Player | BotPlayer)[] => {
+export const createPlayers = (
+  numberOfPlayers: number
+): (Player | BotPlayer)[] => {
   const players: (Player | BotPlayer)[] = [];
   players.push({
     id: 0,
@@ -56,9 +65,8 @@ export const createDeck = (): Card[] =>
 export const shuffleDeck = (deck: Card[]): Card[] =>
   [...deck].sort(() => Math.random() - 0.5);
 
-export const createPot = (total: number, players: number[]): Pot => ({
+export const createPot = (total: number): Pot => ({
   total: defaultChipStack(total),
-  players,
   bets: [],
   isActive: true,
 });
@@ -69,6 +77,9 @@ export const addBetToPot = (
   amount: number
 ): Pot => {
   const newPot = { ...pot };
+
+
+
   newPot.total = addToStack(newPot.total, amount);
   newPot.bets.push({
     playerId,

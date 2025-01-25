@@ -131,7 +131,7 @@ export const usePokerGame = () => {
       players,
       board: { flop: [], turn: [], river: [] },
       burnCards: [],
-      pots: [createPot(0, [])],
+      pots: [createPot(0)],
       showdown: false,
       dealerIndex: 0,
       smallBlindIndex: 1,
@@ -317,15 +317,14 @@ export const usePokerGame = () => {
 
   const bet = useCallback(
     (amount: number) => {
-      setGameState((prev) => {
-        // Current player bets "amount"
+      setGameState((prev) => { 
         const updatedPlayers = prev.players.map((p, i) => {
           if (i === prev.currentPlayerId) {
             const finalBet = Math.min(amount, getStackTotal(p.chipStack));
             return {
               ...p,
               chipStack: deductFromStack(p.chipStack, finalBet),
-              bet: p.bet + finalBet,
+      
             };
           }
           return p;
@@ -334,7 +333,7 @@ export const usePokerGame = () => {
         let newState = {
           ...prev,
           players: updatedPlayers,
-          pot: addToStack(prev.pot, amount),
+          pots: addBetToPot(prev.pots, prev.currentPlayerId, amount),
         };
 
         // Next player

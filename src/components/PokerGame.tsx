@@ -4,6 +4,7 @@ import { Player } from "./Player";
 import { GameTable } from "./GameTable";
 // import { Card } from "./Card";
 import { DebugDeck } from "./DebugDeck";
+import { DebugFlags } from "./DebbugFlags";
 const PokerGame: React.FC = () => {
   // Destructure everything we need from the custom hook
   const { gameState, playerFold, playerCheck, playerCall, playerBet } =
@@ -16,6 +17,7 @@ const PokerGame: React.FC = () => {
   return (
     <div className="  w-screen h-screen bg-green-900 text-white overflow-x-hidden">
       <DebugDeck deck={gameState.deck} />
+      <DebugFlags gameState={gameState} />
 
       {/* The "table" in the center, showing pot + community board */}
       {/* The "table" in the center, showing pot + community board */}
