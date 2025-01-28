@@ -2,21 +2,23 @@ import React from "react";
 import { GameTableProps } from "../types/poker.types";
 import { Card } from "./Card";
 import { FaceDownCards } from "./FaceDownCards";
-import { ChipStack } from "./ChipStack";
+// import { ChipStack } from "./ChipStack";
 
 export const GameTable: React.FC<GameTableProps> = ({
+  // debugMode,
   remainingDeckCards,
   burnedCards,
   board,
-  pots,
+  pot,
 }) => {
   const { flop, turn, river } = board;
 
   return (
     <div className="bg-green-700 rounded-lg p-4 grid grid-cols-12">
-      {pots.length > 0 && (
+      {!!pot && (
         <div>
-          <ChipStack stack={pots[0].total} />
+          {pot.total}
+          {/* <ChipStack stackTotal={pot.total} /> */}
         </div>
       )}
       <div className="col-span-10 flex">

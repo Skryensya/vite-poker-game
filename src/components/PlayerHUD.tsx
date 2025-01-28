@@ -1,19 +1,24 @@
 import React from "react";
 import { Player as PlayerType } from "../types/poker.types";
-import { ChipStack } from "./ChipStack";
+// import { ChipStack } from "./ChipStack";
 import { Card } from "./Card";
 
-interface PlayerProps {
+interface PlayerHUDProps {
+  debugMode?: boolean;
   player: PlayerType;
   isCurrentPlayer: boolean;
 }
 
-export const Player: React.FC<PlayerProps> = ({ player, isCurrentPlayer }) => {
+export const PlayerHUD: React.FC<PlayerHUDProps> = ({
+  debugMode,
+  player,
+  isCurrentPlayer,
+}) => {
   return (
     <div
       className={`p-4 mb-10 min-w-56 items-center space-y-2 ${
         isCurrentPlayer ? "current-player" : ""
-      } ${player.folded ? "opacity-50" : ""}`}
+      } ${player.isFolded ? "opacity-50" : ""}`}
     >
       <div className="flex gap-2">
         <div className="flex gap-2 items-center mb-8">
@@ -34,7 +39,7 @@ export const Player: React.FC<PlayerProps> = ({ player, isCurrentPlayer }) => {
             }
           >
             {player.name}{" "}
-            {player.aiDifficulty ? `(${player.aiDifficulty})` : ""}
+            {/* {player.aiDifficulty ? `(${player.aiDifficulty})` : ""} */}
           </h3>
         </div>
         <div className="flex space-x-1 scale-75">
@@ -43,15 +48,14 @@ export const Player: React.FC<PlayerProps> = ({ player, isCurrentPlayer }) => {
               key={index}
               value={card.value}
               suit={card.suit}
-              open={player.folded}
+              open={player.isFolded || debugMode || !player.isBot}
               variant="tiny"
             />
           ))}
         </div>
       </div>
-      <ChipStack stack={player.chipStack} />
+      {player.chipTotal}
+      {/* <ChipStack stack={player.chipStack} /> */}
     </div>
   );
 };
-
-export default Player;

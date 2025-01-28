@@ -1,75 +1,76 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { usePokerGame } from "../hooks/usePokerGame";
-import { Player } from "./Player";
+import { PlayerHUD } from "./PlayerHUD";
 import { GameTable } from "./GameTable";
-// import { Card } from "./Card";
-import { DebugDeck } from "./DebugDeck";
-import { DebugFlags } from "./DebbugFlags";
+// // import { Card } from "./Card";
+import { DebugDeck } from "./debug/DebugDeck";
+// import { DebugFlags } from "./debug/DebugFlags";
+
+const IS_DEBUG = true;
+
 const PokerGame: React.FC = () => {
   // Destructure everything we need from the custom hook
-  const { gameState, playerFold, playerCheck, playerCall, playerBet } =
-    usePokerGame();
+  const { gameState, resetGame, playTurn, originalDeck } = usePokerGame();
 
   // useEffect(() => {
-  //   console.log(gameState);
-  // }, [gameState]);
+  //   console.log("___originalDeck", originalDeck.map((c) => c.key).join(", "));
+  // }, [originalDeck]);
+
+  const { gameCurrentStage, currentPlayerId, players, burnedCards } = gameState;
+
+  // console.log({ gameState });
 
   return (
     <div className="  w-screen h-screen bg-green-900 text-white overflow-x-hidden">
-      <DebugDeck deck={gameState.deck} />
-      <DebugFlags gameState={gameState} />
-
-      {/* The "table" in the center, showing pot + community board */}
-      {/* The "table" in the center, showing pot + community board */}
-      <GameTable
-        remainingDeckCards={gameState.deck}
-        burnedCards={gameState.burnCards}
-        board={gameState.board} // All community cards: flop, turn, river
-        pots={gameState.pots}
-        showdown={gameState.showdown}
+      <div className="flex gap-2 container mx-auto">
+        <button
+          onClick={resetGame}
+          className="bg-blue-500 text-white p-2 rounded-md"
+        >
+          Reset Game
+        </button>
+        <button
+          onClick={playTurn}
+          className="bg-blue-500 text-white p-2 rounded-md"
+        >
+          Play Turn
+        </button>
+      </div>
+      <DebugDeck
+        deck={gameState.deck}
+        originalDeck={originalDeck}
+        burnedCards={burnedCards}
       />
+      {IS_DEBUG && (
+        <div className="flex flex-col gap-2 p-4 container mx-auto border border-red-500">
+          <div>Game Stage: {gameCurrentStage}</div>
 
-      {/* Players, placed in corners or wherever your <Player> component positions them */}
-      <div className="flex gap-2 items-center justify-evenly">
-        {gameState.players.map((player, i) => (
-          <Player
-            key={player.name + i}
+          <div>
+            Current Player:{" "}
+            {players.find((p) => p.id === currentPlayerId)?.name}
+          </div>
+        </div>
+      )}
+      <div>
+        <GameTable
+          debugMode={IS_DEBUG}
+          remainingDeckCards={gameState.deck}
+          burnedCards={gameState.burnedCards}
+          board={gameState.board}
+          pot={gameState.pot}
+          showdown={gameState.showdown}
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2  container mx-auto">
+        {gameState.players.map((player) => (
+          <PlayerHUD
+            key={player.id}
+            debugMode={IS_DEBUG}
             player={player}
             isCurrentPlayer={gameState.currentPlayerId === player.id}
           />
         ))}
-      </div>
-
-      {/* add a floating pannel of button on the bottom to do the actions available */}
-
-      {/* playerFold, playerCheck, playerCall, playerBet */}
-      <div className="fixed bottom-0 left-0 right-0 flex justify-center items-center">
-        <div className="flex gap-2 py-2  w-full items-center justify-center">
-          <button
-            onClick={() => playerFold(0)}
-            className="bg-red-500 px-4 py-2 rounded-md"
-          >
-            Fold
-          </button>
-          <button
-            onClick={() => playerCheck(0)}
-            className="bg-green-500 px-4 py-2 rounded-md"
-          >
-            Check
-          </button>
-          <button
-            onClick={() => playerCall(0)}
-            className="bg-blue-500 px-4 py-2 rounded-md"
-          >
-            Call
-          </button>
-          <button
-            onClick={() => playerBet(0, 100)}
-            className="bg-yellow-500 px-4 py-2 rounded-md"
-          >
-            Bet
-          </button>
-        </div>
       </div>
     </div>
   );

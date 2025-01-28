@@ -1,11 +1,13 @@
 import { Chip } from "./Chip";
 import { MAX_CHIPS_PER_ROW } from "../utils/constants";
 import { getStackTotalCLP } from "../utils/pokerUtils";
-import { ChipStack as ChipStackType, Denom } from "../types/poker.types";
+import { Denom } from "../types/poker.types";
+import { amountToStack } from "../utils/chipStackUtils";
 
-
-export const ChipStack = ({ stack }: { stack: ChipStackType }) => {
+export const ChipStack = ({ stackTotal }: { stackTotal: number }) => {
   const chipSize = 32;
+
+  const stack = amountToStack(stackTotal);
 
   const rowOffset = { x: 16, y: 25 }; // Offset for each new row
 
